@@ -52,6 +52,7 @@ def train(env_name='CartPole-v1', hidden_sizes=[32], gamma=0.99, lr=1e-3,
 
     policy_optimizer = torch.optim.Adam(policy_net.parameters(), lr=lr)
     value_optimizer = torch.optim.Adam(value_func_net.parameters(), lr=lr)
+
     print(epochs)
 
     def get_policy(obs):
@@ -80,7 +81,6 @@ def train(env_name='CartPole-v1', hidden_sizes=[32], gamma=0.99, lr=1e-3,
         done = False  # signal that episode is completed
         ep_rews = []  # for rewards accured throughout episode
         ep_values = []
-        ep_obs = []
         finished_rendering_this_epoch = False
 
         while True:
@@ -89,7 +89,7 @@ def train(env_name='CartPole-v1', hidden_sizes=[32], gamma=0.99, lr=1e-3,
                 env.render()
 
             batch_obs.append(obs)
-            ep_obs.append(obs)
+
             act = get_action(torch.as_tensor(obs, dtype=torch.float32))
             value = value_func_net(torch.as_tensor(obs, dtype=torch.float32))
             ep_values.append(value.item())
@@ -103,18 +103,10 @@ def train(env_name='CartPole-v1', hidden_sizes=[32], gamma=0.99, lr=1e-3,
                 batch_rets.append(ep_ret)
                 batch_lens.append(ep_len)
 
-                rtg = reward_to_go(ep_rews)
-                batch_weights += list(rtg)
+                batch_weights += list(reward_to_go(ep_rews))
                 batch_advs += list(advantage_estimate(ep_values, batch_weights, gamma=gamma))
 
-                value_optimizer.zero_grad()
-                value_loss = value_loss_compute(obs=torch.as_tensor(ep_obs, dtype=torch.float32),
-                                                weights=torch.as_tensor(list(rtg), dtype=torch.float32)
-                                                )
-                value_loss.backward()
-                value_optimizer.step()
-
-                obs, done, ep_rews, ep_values, ep_obs = env.reset()[0], False, [], [], []
+                obs, done, ep_rews, ep_values = env.reset()[0], False, [], []
 
                 finished_rendering_this_epoch = True
 
@@ -129,12 +121,19 @@ def train(env_name='CartPole-v1', hidden_sizes=[32], gamma=0.99, lr=1e-3,
         policy_batch_loss.backward()
         policy_optimizer.step()
 
-        return policy_batch_loss, batch_rets, batch_lens
+        value_optimizer.zero_grad()
+        value_batch_loss = value_loss_compute(obs=torch.as_tensor(batch_obs, dtype=torch.float32),
+                                              weights=torch.as_tensor(batch_weights, dtype=torch.float32)
+                                              )
+        value_batch_loss.backward()
+        value_optimizer.step()
+
+        return policy_batch_loss, value_batch_loss, batch_rets, batch_lens
 
     for i in range(epochs):
-        policy_batch_loss, batch_rets, batch_lens = train_one_epoch()
-        print('epoch: %3d \t loss_p: %.3f \t return: %.3f \t ep_len: %.3f' %
-              (i, policy_batch_loss, np.mean(batch_rets), np.mean(batch_lens)))
+        policy_batch_loss, value_batch_loss, batch_rets, batch_lens = train_one_epoch()
+        print('epoch: %3d \t loss_p: %.3f \t loss_v: %.3f \t return: %.3f \t ep_len: %.3f' %
+              (i, policy_batch_loss, value_batch_loss, np.mean(batch_rets), np.mean(batch_lens)))
 
 
-train(render=False, epochs=100)
+train(render=True, epochs=100)
