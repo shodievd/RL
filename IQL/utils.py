@@ -50,5 +50,8 @@ def polyak_avg(target, source, polyak):
         p_targ.data.mul_(polyak)
         p_targ.data.add_((1 - polyak) * p.data)
 
+def asymmetric_l2_loss(u, tau):
+    return torch.mean(torch.abs(tau - (u < 0).float()) * u**2)
+
 class Logger:
     pass

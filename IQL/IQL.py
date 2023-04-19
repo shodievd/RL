@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
-from .utils import mlp, DEFAULT_DEVICE, polyak_avg
+from .utils import mlp, DEFAULT_DEVICE, polyak_avg, asymmetric_l2_loss
 import copy
+
+EXP_ADV_MAX = 100.
 
 class TwinQ(nn.Module):
     def __init__(self, state_dim, action_dim, hidden_dim=256, n_hidden=2):
@@ -58,5 +60,36 @@ class IQL(nn.Module):
     
     def update(self, observations, actions, next_observations, 
                rewards, terminals):
-        pass
-    #Катка Дотки под баночку пива и сразу доделать =)
+        # Calculate some values
+        with torch.no_grad():
+            target_q = self.q_target(observations, actions) # For L_v
+            next_v = self.vf(next_observations)             # For L_q
+        
+        # Update Value function
+        v = self.vf(observations)
+        adv = target_q - v
+        v_loss = asymmetric_l2_loss(adv, self.tau)
+        self.v_optimizer.zero_grad()
+        v_loss.backward()
+        self.v_optimizer.step()
+
+        # Update Q function
+        targets = rewards + (1 - terminals) * self.gamma * next_v.detach()
+        qs = self.qf.both(observations, actions)
+        q_loss = sum(nn.functional.mse_loss(q, targets) for q in qs) / len(qs)
+        self.q_optimizer.zero_grad()
+        q_loss.backward()
+        self.q_optimizer.step()
+
+        # Update target Q network
+        polyak_avg(self.q_target, self.qf, self.polyak)
+
+        # Update policy
+        exp_adv = torch.exp(self.beta * adv.detach()).clamp(max=EXP_ADV_MAX)
+        policy_out = self.policy(observations)
+        bc_losses = torch.sum((policy_out - actions) ** 2, dim=1)
+        policy_loss = torch.mean(exp_adv * bc_losses)
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward()
+        self.policy_optimizer.step()
+        
