@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import random
+import gym
+import d4rl
 
 DEFAULT_DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -53,5 +55,29 @@ def polyak_avg(target, source, polyak):
 def asymmetric_l2_loss(u, tau):
     return torch.mean(torch.abs(tau - (u < 0).float()) * u**2)
 
+def get_env_dataset(env_name, max_episode_steps):
+    env = gym.make(env_name)
+    dataset = d4rl.qlearning_dataset(env)
+
+    for k, v in dataset.items():
+        dataset[k] = torchify(v)
+    
+    return env, dataset
+
+def evaluate_policy(env, policy, max_episode_steps):
+    obs = env.reset()
+    episode_reward = 0.
+
+    for _ in range(max_episode_steps):
+        with torch.no_grad():
+            action = policy.act(torchify(obs)).cpu().numpy()
+        next_obs, reward, done, info = env.step(action)
+        total_reward += reward
+        if done:
+            break
+        else:
+            obs = next_obs
+    return total_reward   
+
 class Logger:
-    pass
+    raise NotImplementedError

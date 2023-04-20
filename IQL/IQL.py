@@ -43,7 +43,7 @@ class DeterministicPolicy(nn.Module):
             return self(obs)
 
 class IQL(nn.Module):
-    def __init__(self, qf, vf, policy, optimizer_factory, max_steps, 
+    def __init__(self, qf, vf, policy, optimizer_factory, 
                  tau, beta, gamma=0.99, polyak=0.995):
         super().__init__()
         self.qf = qf.to(DEFAULT_DEVICE)
