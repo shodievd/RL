@@ -7,14 +7,26 @@ import d4rl
 
 DEFAULT_DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# For creating MLP
-def mlp(sizes, activation=nn.Relu, output_activation=nn.Identity):
-    n = len(sizes)
+class Squeeze(nn.Module):
+    def __init__(self, dim=None):
+        super().__init__()
+        self.dim = dim
 
+    def forward(self, x):
+        return x.squeeze(dim=self.dim)
+
+# For creating MLP
+def mlp(sizes, activation=nn.ReLU, output_activation=nn.Identity, squeeze_output=False):
+    n = len(sizes)
+    layers = []
     for i in range(len(sizes) - 1):
         linear = nn.Linear(sizes[i], sizes[i + 1])
         act = activation if i < len(sizes) - 2 else output_activation
         layers += [linear, act()]
+    if squeeze_output:
+      assert sizes[-1] == 1
+      layers.append(Squeeze(-1))
+    
     return nn.Sequential(*layers)
 
 def torchify(x:np.array):
@@ -31,7 +43,7 @@ def torchify(x:np.array):
                                 # 'terminals'])
 def sample_batch(dataset:dict, batch_size:int):
     obs = list(dataset.keys())[0]
-    n, device = len(dataset[obs]), dataset[k].device
+    n, device = len(dataset[obs]), dataset[obs].device
     for v in dataset.values():
         assert len(v) == n, 'Dataset values must have same length'
     indices = torch.randint(low=0, high=n, size=(batch_size,), device=device)
@@ -72,12 +84,13 @@ def evaluate_policy(env, policy, max_episode_steps):
         with torch.no_grad():
             action = policy.act(torchify(obs)).cpu().numpy()
         next_obs, reward, done, info = env.step(action)
-        total_reward += reward
+        episode_reward += reward
         if done:
             break
         else:
             obs = next_obs
-    return total_reward   
+    return episode_reward   
 
 class Logger:
-    raise NotImplementedError
+    def __init__():
+      raise NotImplementedError

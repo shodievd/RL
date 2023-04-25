@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
-from .utils import mlp, DEFAULT_DEVICE, polyak_avg, asymmetric_l2_loss
 import copy
+
+from .utils import mlp, DEFAULT_DEVICE, polyak_avg, asymmetric_l2_loss
+
 
 EXP_ADV_MAX = 100.
 
@@ -32,7 +34,7 @@ class ValueFunction(nn.Module):
 class DeterministicPolicy(nn.Module):
     def __init__(self, obs_dim, act_dim, hidden_dim=[256], n_hidden=2):
         super().__init__()
-        self.net = mlp(list(obs_dim) + hidden_dim * n_hidden + list(act_dim), 
+        self.net = mlp([obs_dim] + hidden_dim * n_hidden + [act_dim], 
                        output_activation=nn.Tanh)
 
     def forward(self, obs):
@@ -74,7 +76,7 @@ class IQL(nn.Module):
         self.v_optimizer.step()
 
         # Update Q function
-        targets = rewards + (1 - terminals) * self.gamma * next_v.detach()
+        targets = rewards + (1 - terminals.float()) * self.gamma * next_v.detach()
         qs = self.qf.both(observations, actions)
         q_loss = sum(nn.functional.mse_loss(q, targets) for q in qs) / len(qs)
         self.q_optimizer.zero_grad()
@@ -92,4 +94,3 @@ class IQL(nn.Module):
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
-        
