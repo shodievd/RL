@@ -1,10 +1,11 @@
-from .IQL.runner import IQLRunner
-from .AWAC.runner import AWACRunner
+from IQL.runner import IQLRunner
+from AWAC.runner import AWACRunner
 import os
 import json
 
-config_path = {'iql': 'config/iql.json',
-               'awac': 'config/awac.json'}
+root = os.path.abspath('.') + '/RL/'
+config_path = {'iql': root + 'configs/iql.json',
+               'awac': root + 'configs/awac.json'}
 
 with open(config_path['iql'], 'r') as file:
     config = json.load(file)
