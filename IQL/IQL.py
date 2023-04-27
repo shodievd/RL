@@ -7,6 +7,7 @@ from .utils import mlp, DEFAULT_DEVICE, polyak_avg, asymmetric_l2_loss
 
 EXP_ADV_MAX = 100.
 
+# Critic class
 class TwinQ(nn.Module):
     def __init__(self, state_dim, action_dim, hidden_dim=256, n_hidden=2):
         super().__init__()
@@ -31,7 +32,8 @@ class ValueFunction(nn.Module):
     def forward(self, state):
         return self.v(state)
 
-class DeterministicPolicy(nn.Module):
+# Actor class
+class Policy(nn.Module):
     def __init__(self, obs_dim, act_dim, hidden_dim=[256], n_hidden=2):
         super().__init__()
         self.net = mlp([obs_dim] + hidden_dim * n_hidden + [act_dim], 
@@ -60,6 +62,7 @@ class IQL(nn.Module):
         self.gamma = gamma
         self.polyak = polyak
     
+    # Implicit Q-Learning
     def update(self, observations, actions, next_observations, 
                rewards, terminals):
         # Calculate some values
@@ -78,7 +81,7 @@ class IQL(nn.Module):
         # Update Q function
         targets = rewards + (1 - terminals.float()) * self.gamma * next_v.detach()
         qs = self.qf.both(observations, actions)
-        q_loss = sum(nn.functional.mse_loss(q, targets) for q in qs) / len(qs)
+        q_loss = sum(nn.functional.mse_loss(q, targets) for q in qs)
         self.q_optimizer.zero_grad()
         q_loss.backward()
         self.q_optimizer.step()

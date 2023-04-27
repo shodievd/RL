@@ -29,7 +29,7 @@ def mlp(sizes, activation=nn.ReLU, output_activation=nn.Identity, squeeze_output
     
     return nn.Sequential(*layers)
 
-def torchify(x:np.array) -> torch.Tensor:
+def torchify(x: np.array) -> torch.Tensor:
     x = torch.from_numpy(x)
     if x.dtype is torch.float64:
         x = x.float()
@@ -41,7 +41,7 @@ def torchify(x:np.array) -> torch.Tensor:
                                 # 'next_observations', 
                                 # 'rewards', 
                                 # 'terminals'])
-def sample_batch(dataset:dict, batch_size:int) -> dict:
+def sample_batch(dataset: dict, batch_size: int) -> dict:
     obs = list(dataset.keys())[0]
     n, device = len(dataset[obs]), dataset[obs].device
     for v in dataset.values():
@@ -64,10 +64,7 @@ def polyak_avg(target: nn.Module, source: nn.Module, polyak: float):
         p_targ.data.mul_(polyak)
         p_targ.data.add_((1 - polyak) * p.data)
 
-def asymmetric_l2_loss(u, tau):
-    return torch.mean(torch.abs(tau - (u < 0).float()) * u**2)
-
-def get_env_dataset(env_name, max_episode_steps):
+def get_env_dataset(env_name: str, max_episode_steps: int):
     env = gym.make(env_name)
     dataset = d4rl.qlearning_dataset(env)
 
