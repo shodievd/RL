@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import copy
 import numpy as np
-from .utils import mlp, DEFAULT_DEVICE, polyak_avg, asymmetric_l2_loss
+from .utils import mlp, DEFAULT_DEVICE, polyak_avg
 
 
 EXP_ADV_MAX = 100.
@@ -15,7 +15,7 @@ class TwinQ(nn.Module):
         self.q1 = mlp(dims, squeeze_output=True)
         self.q2 = mlp(dims, squeeze_output=True)
 
-    def both(self, state:torch.Tensor, action:torch.Tensor) -> tuple(torch.Tensor, torch.Tensor):
+    def both(self, state:torch.Tensor, action:torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         sa = torch.cat([state, action], 1)
         return self.q1(sa), self.q2(sa)
 
@@ -25,8 +25,8 @@ class TwinQ(nn.Module):
 # Actor class
 class Policy(nn.Module):
     def __init__(self, obs_dim: int, act_dim: int, hidden_dim: int = 256, n_hidden: int = 2,
-                 min_log_std: float = -20.0, max_log_std: float = 2.0, min_action: float = -1.0, 
-                 max_action: float = 1.0,):
+                 min_log_std: float = -5.0, max_log_std: float = 2.0, min_action: float = -1.0, 
+                 max_action: float = 2.0,):
         
         super().__init__()
         self._mlp = mlp([obs_dim] + [hidden_dim] * n_hidden + [act_dim], output_activation=nn.ReLU)
@@ -47,7 +47,7 @@ class Policy(nn.Module):
         log_prob = policy.log_prob(actions).sum(-1, keepdim=True)
         return log_prob
 
-    def forward(self, observations: torch.Tensor) -> tuple(torch.Tensor, torch.Tensor):
+    def forward(self, observations: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         policy = self._get_policy(observations)
         action = policy.rsample()
         action.clamp_(self._min_action, self._max_action)
@@ -59,21 +59,20 @@ class Policy(nn.Module):
             policy = self._get_policy(observations)
             action = policy.sample()
             action.clamp_(self._min_action, self._max_action)
-            return action[0]  
-            # action[0] because size like (batch_size, action_dim). In this case batch_size = 1.
+            return action
         
 # Advantage Weighted Actor Critic (AWAC)
 class AWAC(nn.Module):
     def __init__(self, qf, policy, optimizer_factory, 
                  tau, awac_lambda, gamma=0.99, polyak=0.995):
-        super.__init__()
+        super().__init__()
         self.qf = qf.to(DEFAULT_DEVICE)
         self.q_target = copy.deepcopy(qf).requires_grad_(False).to(DEFAULT_DEVICE)
         self.policy = policy.to(DEFAULT_DEVICE)
         self.q_optimizer = optimizer_factory(self.qf.parameters())
         self.policy_optimizer = optimizer_factory(self.policy.parameters())
         self.tau = tau
-        self.awac_lambda = awac_lambda,
+        self.awac_lambda = awac_lambda
         self.gamma = gamma
         self.polyak = polyak
            
@@ -104,7 +103,7 @@ class AWAC(nn.Module):
             exp_adv = torch.exp(adv / self.awac_lambda).clamp(max=EXP_ADV_MAX)
         
         act_log_prob = self.policy.log_prob(observations, actions)
-        pi_loss = -(act_log_prob * exp_adv).mean()
+        pi_loss = (-act_log_prob * exp_adv).mean()
         self.policy_optimizer.zero_grad()
         pi_loss.backward()
         self.policy_optimizer.step()
