@@ -1,0 +1,13 @@
+{
+    "experiment_name": "iql_simple",
+    "env_name": "halfcheetah-medium-v2",
+    "tau": 0.7,
+    "beta": 3.0,
+    "seed": 42,
+    "n_steps": 1000000,
+    "lr": 0.001,
+    "batch_size": 256,
+    "eval_period": 5000,
+    "n_eval_episodes": 10,
+    "max_episode_steps": 1000
+}

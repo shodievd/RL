@@ -9,7 +9,7 @@ EXP_ADV_MAX = 100.
 
 # Critic class
 class TwinQ(nn.Module):
-    def __init__(self, state_dim, action_dim, hidden_dim=256, n_hidden=2):
+    def __init__(self, state_dim, action_dim, hidden_dim=256, n_hidden=3):
         super().__init__()
         dims = [state_dim + action_dim, *([hidden_dim] * n_hidden), 1]
         self.q1 = mlp(dims, squeeze_output=True)
@@ -24,7 +24,7 @@ class TwinQ(nn.Module):
 
 
 class ValueFunction(nn.Module):
-    def __init__(self, state_dim, hidden_dim=256, n_hidden=2):
+    def __init__(self, state_dim, hidden_dim=256, n_hidden=3):
         super().__init__()
         dims = [state_dim, *([hidden_dim] * n_hidden), 1]
         self.v = mlp(dims, squeeze_output=True)
@@ -34,7 +34,7 @@ class ValueFunction(nn.Module):
 
 # Actor class
 class Policy(nn.Module):
-    def __init__(self, obs_dim, act_dim, hidden_dim=[256], n_hidden=2):
+    def __init__(self, obs_dim, act_dim, hidden_dim=[256], n_hidden=3):
         super().__init__()
         self.net = mlp([obs_dim] + hidden_dim * n_hidden + [act_dim], 
                        output_activation=nn.Tanh)

@@ -9,9 +9,9 @@ EXP_ADV_MAX = 100.
 
 # Critic class
 class TwinQ(nn.Module):  
-    def __init__(self, state_dim, action_dim, hidden_dim=256, n_hidden=2):
+    def __init__(self, obs_dim, action_dim, hidden_dim=256, n_hidden=3):
         super().__init__()
-        dims = [state_dim + action_dim, *([hidden_dim] * n_hidden), 1]
+        dims = [obs_dim + action_dim, *([hidden_dim] * n_hidden), 1]
         self.q1 = mlp(dims, squeeze_output=True)
         self.q2 = mlp(dims, squeeze_output=True)
 
@@ -24,31 +24,31 @@ class TwinQ(nn.Module):
 
 # Actor class
 class Policy(nn.Module):
-    def __init__(self, obs_dim: int, act_dim: int, hidden_dim: int = 256, n_hidden: int = 2,
+    def __init__(self, obs_dim: int, act_dim: int, hidden_dim: int = 256, n_hidden: int = 3,
                  min_log_std: float = -5.0, max_log_std: float = 2.0, min_action: float = -1.0, 
                  max_action: float = 2.0,):
         
         super().__init__()
-        self._mlp = mlp([obs_dim] + [hidden_dim] * n_hidden + [act_dim], output_activation=nn.ReLU)
-        self._log_std = nn.Parameter(torch.zeros(act_dim, dtype=torch.float32))
-        self._min_log_std = min_log_std
-        self._max_log_std = max_log_std
-        self._min_action = min_action
-        self._max_action = max_action
+        dims = [obs_dim, *([hidden_dim] * n_hidden), act_dim]
+        self.net = mlp(dims)
+        self.log_std = nn.Parameter(torch.zeros(act_dim, dtype=torch.float32))
+        self.min_log_std = min_log_std
+        self.max_log_std = max_log_std
+        self.min_action = min_action
+        self.max_action = max_action
 
-    def _get_policy(self, observations: torch.Tensor) -> torch.distributions.Distribution:
-        mean = self._mlp(observations)
-        log_std = self._log_std.clamp(self._min_log_std, self._max_log_std)
+    def get_policy(self, observations: torch.Tensor) -> torch.distributions.Distribution:
+        mean = self.net(observations)
+        log_std = self.log_std.clamp(self.min_log_std, self.max_log_std)
         policy = torch.distributions.Normal(mean, log_std.exp())
         return policy
-
     def log_prob(self, observations: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
-        policy = self._get_policy(observations)
+        policy = self.get_policy(observations)
         log_prob = policy.log_prob(actions).sum(-1, keepdim=True)
         return log_prob
 
     def forward(self, observations: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        policy = self._get_policy(observations)
+        policy = self.get_policy(observations)
         action = policy.rsample()
         action.clamp_(self._min_action, self._max_action)
         log_prob = policy.log_prob(action).sum(-1, keepdim=True)
@@ -64,14 +64,13 @@ class Policy(nn.Module):
 # Advantage Weighted Actor Critic (AWAC)
 class AWAC(nn.Module):
     def __init__(self, qf, policy, optimizer_factory, 
-                 tau, awac_lambda, gamma=0.99, polyak=0.995):
+                 awac_lambda, gamma=0.99, polyak=0.995):
         super().__init__()
         self.qf = qf.to(DEFAULT_DEVICE)
         self.q_target = copy.deepcopy(qf).requires_grad_(False).to(DEFAULT_DEVICE)
         self.policy = policy.to(DEFAULT_DEVICE)
         self.q_optimizer = optimizer_factory(self.qf.parameters())
         self.policy_optimizer = optimizer_factory(self.policy.parameters())
-        self.tau = tau
         self.awac_lambda = awac_lambda
         self.gamma = gamma
         self.polyak = polyak
