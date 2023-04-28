@@ -50,15 +50,15 @@ class Policy(nn.Module):
     def forward(self, observations: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         policy = self.get_policy(observations)
         action = policy.rsample()
-        action.clamp_(self._min_action, self._max_action)
+        action.clamp_(self.min_action, self.max_action)
         log_prob = policy.log_prob(action).sum(-1, keepdim=True)
         return action, log_prob
     
     def act(self, observations: torch.Tensor, enabl_grad: bool = False) -> torch.Tensor:
         with torch.set_grad_enabled(enabl_grad):
-            policy = self._get_policy(observations)
+            policy = self.get_policy(observations)
             action = policy.sample()
-            action.clamp_(self._min_action, self._max_action)
+            action.clamp_(self.min_action, self.max_action)
             return action
         
 # Advantage Weighted Actor Critic (AWAC)
