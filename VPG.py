@@ -38,7 +38,7 @@ def advantage_estimate(values, rtgs, gamma):
 
 def train(env_name='CartPole-v1', hidden_sizes=[32], gamma=0.99, lr=1e-3,
           epochs=50, batch_size=5000, render=False):
-    env = gym.make(env_name, render_mode='human')
+    env = gym.make(env_name, render_mode=None)
     assert isinstance(env.observation_space, Box), \
         "This example only works for envs with continuous state spaces."
     assert isinstance(env.action_space, Discrete), \
@@ -136,4 +136,4 @@ def train(env_name='CartPole-v1', hidden_sizes=[32], gamma=0.99, lr=1e-3,
               (i, policy_batch_loss, value_batch_loss, np.mean(batch_rets), np.mean(batch_lens)))
 
 
-train(render=True, epochs=100)
+train(render=False, epochs=1000)

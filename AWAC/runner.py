@@ -45,6 +45,7 @@ def AWACRunner(experiment_name: str, env_name: str = 'halfcheetah-medium-v2', aw
         if (step + 1) % eval_period == 0:
             ret = eval_policy()
             if ret > best_rew:
+                best_rew = ret
                 best_wts = copy.deepcopy(awac_alg.state_dict())
     
     os.makedirs(experiment_name)
